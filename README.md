@@ -2,7 +2,7 @@
 Alejandro Gonzalez Lazaro (alejand2) and Majd Almudhry (malmudhr)
 
 ## URL:
-
+https://agzzlale.github.io/15418_mesh_project/
 
 ## SUMMARY:
 
