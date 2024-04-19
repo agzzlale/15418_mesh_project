@@ -32,7 +32,7 @@ MPI Partitioning
 
 Week 3.1 (April 15-17):
 
-Implement edge record pass for MPI  (Alejandro)
+Implement edge record pass for MPI  (Alejandro) (DONE)
 
 Start implementing the “relaxed priority queues” for CUDA (Majd) 
 
