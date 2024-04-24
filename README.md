@@ -39,21 +39,23 @@ Start implementing the “relaxed priority queues” for CUDA (Majd)
 
 Week 3.2 (April 18-21):
 
-Implement collapsing pass for MPI (Alejandro)
+Implement collapsing pass for MPI (Alejandro) (DONE only with non-conflicts)
 
 Finish implementing the “relaxed priority queues” for CUDA (Majd) 
 
 
 Week 4.1 (April 22-24):
 
-Implement gather and rebuild from partitions for MPI (Alejandro)
+Implement gather and rebuild from partitions for MPI (Alejandro) (MOVED)
 
 Implement the locking part for CUDA (Majd)
 
 
 Week 4.2 (April 25-28):
 
-MPI alternate mesh partitioning with KD-trees (Alejandro)
+~~MPI alternate mesh partitioning with KD-trees (Alejandro) ~~
+Implement gather and rebuild from partitions for MPI (Alejandro)
+Add collapsing for MPI with conflicts (Alejandro)
 
 Partitioning algorithm with CUDA (Majd)
 
