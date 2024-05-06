@@ -126,7 +126,7 @@ In our implementation we began with creating the transaction mechanism to handle
 There is also another potential issue with this strategy for the conflict case. Currently, as we are only deleting elements in our local element arrays, we can keep our array sizes constant. Nevertheless, If we delete edges in the conflict zone, we need to bring in the surrounding area to the removed edge and generate new ghost cells for each process.
  This raises a new problem. This would require us to communicate neighboring data, apart from the data found in the transaction diamond, from each of the owners of elements in the transaction to each of the dependents of the transaction. This is also the uncertainty as to how much neighboring data needs to be communicated to each different dependent so that they have complete ghost cells, and this can easily spiral out of control if we pick edges from the conflict zone too frequently.
 
-## RESULTS:
+## RESULTS
 
 To test our implementation we have generated some sphere meshes of different face counts and simplified them with different ratios. We will compare our results both with our original sequential code and the single core performance of our parallel code. We will measure our performance in triangles collapsed per second. As we will see in all the following results, partitioning can be a bottleneck. However, the partitioning has to be done once and its cost could be amortized if we reuse it if we need to simplify a mesh multiple times at multiple resolutions (For example when the mesh is seen on the screen from multiple different distances), hence we will also show the speedup without the partitioning cost.
 
@@ -151,7 +151,7 @@ To test our implementation we have generated some sphere meshes of different fac
     ![MPI11](/docs/assets/BIG8.png)
 
 
-## DISCUSSION:
+## DISCUSSION
  - MPI
     We can see throughout our results that our main limitation for speedup was the partitioning step since this is inherently sequential. However, this step is very useful when it comes to avoiding conflicts in our edge collapse (our code currently searches for edges outside of the conflict zone thus seeing near linear speedup shows us that we are able to find non-conflict edges more often than not). Thus, next optimization efforts should focus on other partitioning methods as the kd-tree method that we had planned to reduce that overhead. Still, we can see that higher mesh sizes and lower ratios of simplification (smaller mesh at the end) are able to amortize the extra partitioning cost and achieve better speedup. 
     The following is an example analysis of execution time for the 20480 0.05 8 core simplification case, as we can see partitioning takes more than half the execution time:
@@ -161,6 +161,16 @@ To test our implementation we have generated some sphere meshes of different fac
 
 
     We can see that choosing a multicore processor was a good idea to speed up mesh simplification, however, using MPI instead of Shared Memory may not be the best for consumer targeted multiprocessors (which is our intended  use case) as this required a large amount of reworking of structures to be transferable through memory and made conflict zone collapse more complicated to implement than potentially making use of locks only at conflict zones. Would be interesting to try this algorithm with OpenMP instead of OpenMPI.
+
+## RESOURCES
+
+https://github.com/CMU-Graphics/Scotty3D 
+https://github.com/CMU-Graphics/Scotty3D/blob/main/assignments/A2/simplify.md 
+https://www.cs.cmu.edu/~./garland/quadrics/quadrics.html 
+https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8341488/
+https://en.wikipedia.org/wiki/Breadth-first_search
+https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0255832
+
 
 ## SCHEDULE:
 Week 0 (March 24-31): (DONE)
