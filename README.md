@@ -71,7 +71,7 @@ Workload Breakdown.
 
 	Intrinsically, the halfedge mesh has a large amount of parallelism that can be accomplished; different parallel elements do not modify elements that other elements need to access/modify. For instance, outside of the Collapse Diamond area that we described above, another parallel unit can collapse any edge that does not touch any of the elements in another’s Collapse Diamond area. This can amount to good data parallelism if conflicts are detected and handled appropriately. Moreover, there is potential for temporal locality while computing an edge collapse, but not as much space locality as the halfedge mesh structure is stored as a set of references between items.
 
-APPROACH:
+## APPROACH
 - Technologies Used:
 	This project runs on top of Scotty3D (https://github.com/CMU-Graphics/Scotty3D) a 3D modeling, rendering and animation program for 15462 assignments. This program is written in C++ and we introduced MPI and cuda components for our parallelization. Our main target was the 8-core multiprocessor and NVIDIA 2080 graphics cards found on the GHC clusters.
 Mapping the Problem in Parallel
@@ -126,6 +126,41 @@ In our implementation we began with creating the transaction mechanism to handle
 There is also another potential issue with this strategy for the conflict case. Currently, as we are only deleting elements in our local element arrays, we can keep our array sizes constant. Nevertheless, If we delete edges in the conflict zone, we need to bring in the surrounding area to the removed edge and generate new ghost cells for each process.
  This raises a new problem. This would require us to communicate neighboring data, apart from the data found in the transaction diamond, from each of the owners of elements in the transaction to each of the dependents of the transaction. This is also the uncertainty as to how much neighboring data needs to be communicated to each different dependent so that they have complete ghost cells, and this can easily spiral out of control if we pick edges from the conflict zone too frequently.
 
+## RESULTS:
+
+To test our implementation we have generated some sphere meshes of different face counts and simplified them with different ratios. We will compare our results both with our original sequential code and the single core performance of our parallel code. We will measure our performance in triangles collapsed per second. As we will see in all the following results, partitioning can be a bottleneck. However, the partitioning has to be done once and its cost could be amortized if we reuse it if we need to simplify a mesh multiple times at multiple resolutions (For example when the mesh is seen on the screen from multiple different distances), hence we will also show the speedup without the partitioning cost.
+
+- MPI
+    ![MPI1](/docs/assets/1280_0.8.png)
+    ![MPI2](/docs/assets/5120_0.8.png)
+    ![MPI3](/docs/assets/5120_0.8.png)
+    ![MPI4](/docs/assets/20480_0.8.png)
+    ![MPI5](/docs/assets/20480_0.1.png)
+    ![MPI6](/docs/assets/20480_0.05.png)
+    
+    Sample renders from 20480 Faces Sphere with 0.2 ratio
+    - Original mesh
+    ![MPI7](/docs/assets/OGBIG.png)
+    - 1 proc
+    ![MPI8](/docs/assets/1280_0.8.png)
+    - 2 procs
+    ![MPI9](/docs/assets/BIG2.png)
+    - 4 procs
+    ![MPI10](/docs/assets/BIG4.png)
+    - 8 procs
+    ![MPI11](/docs/assets/BIG8.png)
+
+
+## DISCUSSION:
+ - MPI
+    We can see throughout our results that our main limitation for speedup was the partitioning step since this is inherently sequential. However, this step is very useful when it comes to avoiding conflicts in our edge collapse (our code currently searches for edges outside of the conflict zone thus seeing near linear speedup shows us that we are able to find non-conflict edges more often than not). Thus, next optimization efforts should focus on other partitioning methods as the kd-tree method that we had planned to reduce that overhead. Still, we can see that higher mesh sizes and lower ratios of simplification (smaller mesh at the end) are able to amortize the extra partitioning cost and achieve better speedup. 
+    The following is an example analysis of execution time for the 20480 0.05 8 core simplification case, as we can see partitioning takes more than half the execution time:
+
+
+    ![BREAKDOWN](/docs/assets/BREAKDOWN.png)
+
+
+    We can see that choosing a multicore processor was a good idea to speed up mesh simplification, however, using MPI instead of Shared Memory may not be the best for consumer targeted multiprocessors (which is our intended  use case) as this required a large amount of reworking of structures to be transferable through memory and made conflict zone collapse more complicated to implement than potentially making use of locks only at conflict zones. Would be interesting to try this algorithm with OpenMP instead of OpenMPI.
 
 ## SCHEDULE:
 Week 0 (March 24-31): (DONE)
