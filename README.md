@@ -142,7 +142,7 @@ To test our implementation we have generated some sphere meshes of different fac
     - Original mesh
     ![MPI7](/docs/assets/OGBIG.png)
     - 1 proc
-    ![MPI8](/docs/assets/1280_0.8.png)
+    ![MPI8](/docs/assets/BIG1.png)
     - 2 procs
     ![MPI9](/docs/assets/BIG2.png)
     - 4 procs
