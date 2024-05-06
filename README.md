@@ -95,7 +95,7 @@ For both CUDA and MPI implementations, we begin by translating the loaded halfed
 - MPI:
 To keep track of elements across partitions, we have to expand each of the element data structures. Each reference to another connected element now includes two separate uint32_t indexes, one global index (which represents the index in the final global mesh array) and one local index (which represents the index in the current partition’s array). We also keep track of the owner of the referenced elements and also the current owner of this element to check for conflicts and for potential communication of collapses that concern ghost cells so that all the different owners can get involved.
 - CUDA:
-
+	The main changes made to the data structures with CUDA besides the translation to arrays has to do with C++ STL since they cannot be used inside a CUDA kernel. This meant that we had to find a replacement for every standard library function that we used such as rand(). We also added markers on each element to indicate who the thread owner of that element is. 
 Iteration Process:
 In this section we will first talk about the improvement process to our current algorithms and then about some ideas we attempted to implement but had to leave behind.
 - MPI:
@@ -110,7 +110,17 @@ In this section we will first talk about the improvement process to our current 
 	This speedup happened after we did some restructuring and removing inefficiencies in the code. This partitioning step is inherently serial but some of the later steps after the breadth first search assignment could be parallelized thus we attempted to parallelize that later step but between the extra communication and necessary steps to adapt to these last steps the time delta was not consistently better thus we kept the whole partitioning serially.
 
 - CUDA 
-	One issue we faced throughout our time with this project was that there seems to be a bug in our sequential version of the algorithm that we could not find. Our theory is that when we handle an edge collapse once, this produces a valid mesh but some reference change is not quite right. Thus if we collapse edges around an area we had collapsed before, this error can compound and eventually produce an invalid mesh. As a result in some cases we were not able to generate valid meshes, and often found our code running into infinite loops when traversing the mesh due to mesh inconsistencies. Hence here we will talk about some of the improvements we began to implement/planned for our parallelization but were hindered by this bug.
+	The main challenge with the CUDA algorithm is the synchronization that is required across  all threads in a grid. If the algorithm was to be implemented on a CPU, then using locks would have been a possible solution to prevent conflicts. However, CUDA does not provide a simple mechanism for a general mutex lock. Also because of warp execution, deadlocking is hard to avoid and is what we struggled with in our initial approach. That’s why we decided to use an approach that is similar to a lock-free implementation that marks an element, synchronizes with all running threads, and then checks the mark again. 
+    Another challenge with working with GPUs in general is the high cost of accessing global memory. However, given the nature of the huge data structures we’re using, copying everything to shared memory is not possible. One thing that helped with that is removing the vertex quadrics which is an array of 4x4 matrices of flouts the size of the vertices. This is a performance-space tradeoff as having that array around saves us from having to compute the quadric cost every time we collapse an edge, but given how huge of a space that array takes, it was the better decision to get rid of it. 
+    We have tried doing that with a smaller mesh, and it produced the following results. We can clearly see how shared memory is much faster than global memory as it takes an order of magnitude less even for a small mesh. 
+
+
+![optcuda](/docs/assets/OPCUDA.png)
+
+    However, we again ran out of shared memory as we used bigger meshes. So, a better approach would be to partition the mesh, similar to how it’s done with MPI, and make every block handle a different partition. However, we were not able to fully test this approach yet.
+
+One issue we faced throughout our time with this project was that there seems to be a bug in our sequential version of the algorithm that we could not find. Our theory is that when we handle an edge collapse once, this produces a valid mesh but some reference change is not quite right. Thus if we collapse edges around an area we had collapsed before, this error can compound and eventually produce an invalid mesh. As a result in some cases we were not able to generate valid meshes, and often found our code running into infinite loops when traversing the mesh due to mesh inconsistencies. Hence here we will talk about some of the improvements we began to implement/planned for our parallelization but were hindered by this bug.
+
 
 - MPI:
     - Handling Conflict Zones:
@@ -125,6 +135,13 @@ In this case, we check if previously committed Full Owner transactions conflict 
 In our implementation we began with creating the transaction mechanism to handle the first two cases. However, it seems that with this strategy the bug we have discussed before showed its head again and generated invalid meshes, thus we spent many days attempting to find the bug and implementing the transaction mechanism in different ways but were not able to get it to work.
 There is also another potential issue with this strategy for the conflict case. Currently, as we are only deleting elements in our local element arrays, we can keep our array sizes constant. Nevertheless, If we delete edges in the conflict zone, we need to bring in the surrounding area to the removed edge and generate new ghost cells for each process.
  This raises a new problem. This would require us to communicate neighboring data, apart from the data found in the transaction diamond, from each of the owners of elements in the transaction to each of the dependents of the transaction. This is also the uncertainty as to how much neighboring data needs to be communicated to each different dependent so that they have complete ghost cells, and this can easily spiral out of control if we pick edges from the conflict zone too frequently.
+- CUDA
+CUDA:
+To run the same algorithm using GPUs, we used a different implementation that is more suited to the architecture of a GPU. We referenced this paper in our approach with CUDA to simplify the process. So after we copy all the data structures over to the global memory of the GPU, we run one kernel to compute the vertex quadrics, and then run another kernel that does all the simplification. 
+There are two phases in that second kernel. During the first phase, all threads in a block randomly choose a potential edge to collapse, and then after all threads are done, the edge with the minimum cost is selected.
+In the second phase, if the selected edge in the first phase is not dead (already collapsed), then all elements (vertices, halfedges, etc. ) in its critical area are marked with the ID of the thread that’s trying to collapse it. All threads across all blocks are then synchronized. Across block synchronization is not trivial in CUDA, but can be achieved with a feature called cooperative groups that was released as part of CUDA 9.0. 
+After every thread in a block marked its elements, they’re checked again for no corruption to ensure no other thread picked a conflicting edge. If the marks were not corrupted, and thus all threads picked independent edges, then the thread proceeds to collapse that edge.
+The process is repeated until a specific ratio is achieved after which everything is copied back to CPU and the mesh is validated.    
 
 ## RESULTS
 
@@ -150,6 +167,10 @@ To test our implementation we have generated some sphere meshes of different fac
     - 8 procs
     ![MPI11](/docs/assets/BIG8.png)
 
+- CUDA
+    ![CUDATWO](/docs/assets/CUDATWO.png)
+    ![CUDATHREE](/docs/assets/CUDATHREE.png)
+    ![CUDAFOUR](/docs/assets/CUDAFOUR.png)
 
 ## DISCUSSION
  - MPI
@@ -161,6 +182,16 @@ To test our implementation we have generated some sphere meshes of different fac
 
 
     We can see that choosing a multicore processor was a good idea to speed up mesh simplification, however, using MPI instead of Shared Memory may not be the best for consumer targeted multiprocessors (which is our intended  use case) as this required a large amount of reworking of structures to be transferable through memory and made conflict zone collapse more complicated to implement than potentially making use of locks only at conflict zones. Would be interesting to try this algorithm with OpenMP instead of OpenMPI.
+
+- CUDA
+    There are two main problems with the CUDA implementation which might explain why the speedup is far from ideal. The first problem is the small problem size. Only smaller meshes with high ratios worked with CUDA because of the cost computation bug that we have. This makes it harder to draw a conclusion on how effective this approach is. 
+    The second problem is inherent to the algorithm chosen here. After the kernel is done from its first phase, where it chooses a single edge to collapse, every other thread in the block remains idle as it waits for that thread to finish collapsing the edge. Clearly there’s a better way to better utilize all the GPU resources. We think looking at algorithms such as the one with the priority queue that we talked about in our milestone report would be interesting. The reason we didn’t use that approach is because of our problems with the sequential implementation that we thought a simpler approach would be easier to debug and analyze. 
+	The following tables show some analysis of execution time for the two main phases in the CUDA kernel in units of clock cycles.
+
+    ![TABLESCUDA](/docs/assets/TABLESCUDA.png)
+
+    We can see from these results that we need to find a way to parallelize the second phase more or find things to overlap with during that time. 
+
 
 ## RESOURCES
 
