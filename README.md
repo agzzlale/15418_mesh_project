@@ -195,12 +195,12 @@ To test our implementation we have generated some sphere meshes of different fac
 
 ## RESOURCES
 
-https://github.com/CMU-Graphics/Scotty3D 
-https://github.com/CMU-Graphics/Scotty3D/blob/main/assignments/A2/simplify.md 
-https://www.cs.cmu.edu/~./garland/quadrics/quadrics.html 
-https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8341488/
-https://en.wikipedia.org/wiki/Breadth-first_search
-https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0255832
+- https://github.com/CMU-Graphics/Scotty3D 
+- https://github.com/CMU-Graphics/Scotty3D/blob/main/assignments/A2/simplify.md 
+- https://www.cs.cmu.edu/~./garland/quadrics/quadrics.html 
+- https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8341488/
+- https://en.wikipedia.org/wiki/Breadth-first_search
+- https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0255832
 
 
 ## SCHEDULE:
