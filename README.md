@@ -171,6 +171,8 @@ To test our implementation we have generated some sphere meshes of different fac
     ![CUDATWO](/docs/assets/CUDATWO.png)
     ![CUDATHREE](/docs/assets/CUDATHREE.png)
     ![CUDAFOUR](/docs/assets/CUDAFOUR.png)
+    ![CUDAOG](/docs/assets/OGCUDA.png)
+    ![CUDASIMPL](/docs/assets/CUDASIMPL.png)
 
 ## DISCUSSION
  - MPI
